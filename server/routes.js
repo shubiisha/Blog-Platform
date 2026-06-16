@@ -144,6 +144,19 @@ VALUES(?,?,?)
     },
   );
 });
+router.get("/users/:email", (req, res) => {
+  const email = req.params.email;
+
+  const sql = "SELECT id FROM users WHERE email = ?";
+
+  db.query(sql, [email], (err, result) => {
+    if (err) {
+      return res.status(500).json(err);
+    }
+
+    res.json(result[0]);
+  });
+});
 router.get("/comments/:post_id", (req, res) => {
   const post_id = req.params.post_id;
 

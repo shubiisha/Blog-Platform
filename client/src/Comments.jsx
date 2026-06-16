@@ -2,43 +2,61 @@ import { useEffect, useState } from "react";
 import API from "./api";
 import { auth } from "./firebase";
 
-function Comments({ postId }) {
+function Comments({ postId, onUpdate }) {
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState("");
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
-    async function loadComments() {
+    const loadComments = async () => {
       try {
         const res = await API.get(`/comments/${postId}`);
-
-        console.log("Post ID:", postId);
-        console.log("Comments:", res.data);
-
         setComments(res.data);
       } catch (error) {
         console.log(error);
       }
-    }
+    };
 
     loadComments();
   }, [postId]);
 
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          const res = await API.get(`/users/${user.email}`);
+          setUserId(res.data.id);
+        } catch (error) {
+          console.log(error);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const addComment = async () => {
+    if (!comment.trim()) return;
+
     try {
       await API.post("/comments", {
         post_id: postId,
-        user_id: auth.currentUser.uid,
-        comment: comment,
+        user_id: userId,
+        comment,
       });
 
+      const res = await API.get(`/comments/${postId}`);
+
+      setComments(res.data);
       setComment("");
 
-      const res = await API.get(`/comments/${postId}`);
-      setComments(res.data);
+      // update parent (Home)
+      onUpdate?.(postId, res.data);
     } catch (error) {
       console.log(error);
     }
   };
+
   return (
     <div>
       <h3>Comments</h3>
@@ -56,9 +74,7 @@ function Comments({ postId }) {
             placeholder="Write a comment..."
             onChange={(e) => setComment(e.target.value)}
           />
-
           <br />
-
           <button onClick={addComment}>Add Comment</button>
         </div>
       )}
