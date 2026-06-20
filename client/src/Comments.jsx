@@ -1,50 +1,48 @@
 import { useEffect, useState } from "react";
 import API from "./api";
-import { auth } from "./firebase";
 
 function Comments({ postId }) {
   const [comments, setComments] = useState([]);
-  const [comment, setComment] = useState("");
-  const [firebaseUid, setFirebaseUid] = useState("");
-
-  const loadComments = async () => {
-    try {
-      const res = await API.get(`/comments/${postId}`);
-      setComments(res.data);
-    } catch (error) {
-      console.log(error);
-    }
-  };
+  const [text, setText] = useState("");
+  const [name, setName] = useState("");
 
   useEffect(() => {
     loadComments();
   }, [postId]);
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setFirebaseUid(user.uid);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const loadComments = async () => {
+    try {
+      const res = await API.get(`/comments/${postId}`);
+      setComments(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   const addComment = async () => {
-    if (!comment.trim()) return;
+    if (!text.trim()) return;
 
     try {
-      await API.post("/comments", {
+      const res = await API.post("/comments", {
         post_id: postId,
-        user_id: firebaseUid,
-        comment: comment,
+        username: name,
+        comment: text,
       });
 
-      setComment("");
+      // immediately show the new comment
+      setComments([
+        ...comments,
+        {
+          id: res.data.id,
+          username: name,
+          comment: text,
+        },
+      ]);
 
-      loadComments();
-    } catch (error) {
-      console.log(error.response?.data || error.message);
+      setText("");
+      setName("");
+    } catch (err) {
+      console.log(err);
     }
   };
 
@@ -52,29 +50,30 @@ function Comments({ postId }) {
     <div>
       <h3>Comments</h3>
 
-      {comments.length === 0 ? (
-        <p>No comments yet</p>
-      ) : (
-        comments.map((item) => (
-          <p key={item.id}>
-            <b>{item.email || "User"}</b> : {item.comment}
-          </p>
-        ))
-      )}
-
-      {auth.currentUser && (
-        <div>
-          <textarea
-            value={comment}
-            placeholder="Write a comment..."
-            onChange={(e) => setComment(e.target.value)}
-          />
-
-          <br />
-
-          <button onClick={addComment}>Add Comment</button>
+      {comments.map((c) => (
+        <div key={c.id}>
+          <b>{c.username}</b>
+          <p>{c.comment}</p>
         </div>
-      )}
+      ))}
+
+      <input
+        placeholder="Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+
+      <br />
+
+      <textarea
+        placeholder="Write comment..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+
+      <br />
+
+      <button onClick={addComment}>Add Comment</button>
     </div>
   );
 }
