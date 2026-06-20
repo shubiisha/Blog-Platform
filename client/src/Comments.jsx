@@ -2,33 +2,28 @@ import { useEffect, useState } from "react";
 import API from "./api";
 import { auth } from "./firebase";
 
-function Comments({ postId, onUpdate }) {
+function Comments({ postId }) {
   const [comments, setComments] = useState([]);
   const [comment, setComment] = useState("");
-  const [userId, setUserId] = useState(null);
+  const [firebaseUid, setFirebaseUid] = useState("");
+
+  const loadComments = async () => {
+    try {
+      const res = await API.get(`/comments/${postId}`);
+      setComments(res.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   useEffect(() => {
-    const loadComments = async () => {
-      try {
-        const res = await API.get(`/comments/${postId}`);
-        setComments(res.data);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
     loadComments();
   }, [postId]);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        try {
-          const res = await API.get(`/users/${user.email}`);
-          setUserId(res.data.id);
-        } catch (error) {
-          console.log(error);
-        }
+        setFirebaseUid(user.uid);
       }
     });
 
@@ -41,19 +36,15 @@ function Comments({ postId, onUpdate }) {
     try {
       await API.post("/comments", {
         post_id: postId,
-        user_id: userId,
-        comment,
+        user_id: firebaseUid,
+        comment: comment,
       });
 
-      const res = await API.get(`/comments/${postId}`);
-
-      setComments(res.data);
       setComment("");
 
-      // update parent (Home)
-      onUpdate?.(postId, res.data);
+      loadComments();
     } catch (error) {
-      console.log(error);
+      console.log(error.response?.data || error.message);
     }
   };
 
@@ -61,11 +52,15 @@ function Comments({ postId, onUpdate }) {
     <div>
       <h3>Comments</h3>
 
-      {comments.map((item) => (
-        <p key={item.id}>
-          <b>{item.email}</b> : {item.comment}
-        </p>
-      ))}
+      {comments.length === 0 ? (
+        <p>No comments yet</p>
+      ) : (
+        comments.map((item) => (
+          <p key={item.id}>
+            <b>{item.email || "User"}</b> : {item.comment}
+          </p>
+        ))
+      )}
 
       {auth.currentUser && (
         <div>
@@ -74,7 +69,9 @@ function Comments({ postId, onUpdate }) {
             placeholder="Write a comment..."
             onChange={(e) => setComment(e.target.value)}
           />
+
           <br />
+
           <button onClick={addComment}>Add Comment</button>
         </div>
       )}

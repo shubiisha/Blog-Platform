@@ -5,14 +5,6 @@ import Comments from "./Comments";
 function Home() {
   const [posts, setPosts] = useState([]);
 
-  const updateComments = (postId, comments) => {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post.id === postId ? { ...post, comments } : post,
-      ),
-    );
-  };
-
   useEffect(() => {
     API.get("/posts")
       .then((res) => {
@@ -35,13 +27,7 @@ function Home() {
             Author: <i>{post.email}</i>
           </p>
 
-          {post.comments?.map((comment) => (
-            <p key={comment.id}>
-              <b>{comment.email}</b>: {comment.comment}
-            </p>
-          ))}
-
-          <Comments postId={post.id} updateComments={updateComments} />
+          <Comments postId={post.id} />
 
           <hr />
         </div>
